@@ -11,7 +11,8 @@ class Train():
         self.ctr = ctr
         self.speed = 0
         self.ctr.registerTrain(self)
-        self.ctr.askForSpeed(tID, 0)
+        self.ctr.askForSpeed(tID, None)
+        self.ctr.askForSpeed(tID, None)
 
     def setSpeed(self, speed):
         self.ctr.setSpeed(speed, self.tID)

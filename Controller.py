@@ -31,9 +31,9 @@ class Controller():
     def send(self, inp):
         assert(len(inp) == 13)
         some_bytes = bytearray(inp)
-        MESSAGE = bytes(some_bytes)
+        msg = bytes(some_bytes)
 
-        self.socksnd.sendto(MESSAGE, (self.SENDIP, self.SENDPORT))
+        self.socksnd.sendto(msg, (self.SENDIP, self.SENDPORT))
 
     def registerTrain(self, train : Train):
         self.trains[train.tID] = train
@@ -48,24 +48,23 @@ class Controller():
             command = int(res[2:4], base=16)//2*2
             isResponse = int(res[3:4], base=16)%2==1
             dlc = res[9:10]
-            print("recv")
 
             if(command == self.SPEED and isResponse):
                 tID = (int(res[10:12], base=16), int(res[12:14], base=16), int(res[14:16], base=16), int(res[16:18], base=16))
                 speed = int(res[18:22], base = 16)
-                print("Speed:", speed)
                 if tID in self.trains:
                     self.trains[tID].speed = speed
                 if tID in self.speedCallbacks:
+                    print("found callback", len(self.speedCallbacks[tID]))
                     for cb in self.speedCallbacks[tID]:
                         cb(speed)
 
-            print(f"Prio: {prio} \
-            Command: {hex(command)} \
-            Resp: {isResponse} \
-            DLC: {dlc} \
-            {res[10:12]} {res[12:14]} {res[14:16]} {res[16:18]} {res[18:20]} {res[20:22]} {res[22:24]} {res[24:26]}\
-            ")
+            # print(f"Prio: {prio} \
+            # Command: {hex(command)} \
+            # Resp: {isResponse} \
+            # DLC: {dlc} \
+            # {res[10:12]} {res[12:14]} {res[14:16]} {res[16:18]} {res[18:20]} {res[20:22]} {res[22:24]} {res[24:26]}\
+            # ")
 
 
     def stop(self):
@@ -112,7 +111,7 @@ class Controller():
         assert(len(tID)==4)
 
         ev = Event()
-        cb = lambda: print("cb", ev.set())
+        cb = lambda x: ev.set()
         if timeout != 0:
             if not tID in self.speedCallbacks:
                 self.speedCallbacks[tID] = []

@@ -6,7 +6,6 @@ import Train
 
 UDP_IP = "10.0.0.1"
 OWN_IP = "10.0.0.147"
-UDP_PORT = 15731
 
 if __name__ == "__main__":
     ctr = Controller.Controller(UDP_IP, OWN_IP)
