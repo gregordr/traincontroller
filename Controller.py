@@ -55,7 +55,6 @@ class Controller():
                 if tID in self.trains:
                     self.trains[tID].speed = speed
                 if tID in self.speedCallbacks:
-                    print("found callback", len(self.speedCallbacks[tID]))
                     for cb in self.speedCallbacks[tID]:
                         cb(speed)
 
@@ -125,8 +124,10 @@ class Controller():
             0,0])
 
         if(timeout != 0):
-            ev.wait(timeout)
+            success = ev.wait(timeout)
             self.speedCallbacks[tID].remove(cb)
+
+        return success
 
     def changeDirection(self, tID):
         self.send(
