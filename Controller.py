@@ -2,7 +2,8 @@ from multiprocessing import Event
 import socket
 from threading import Thread
 from typing import Callable, Dict, List
-
+import reactivex as rx
+from reactivex import operators as op
 import Train
 
 class Controller():
@@ -12,6 +13,8 @@ class Controller():
 
     trains : Dict[Train.Train.tIDType,Train.Train] = {}
     speedCallbacks : Dict[Train.Train.tIDType, List[Callable[[int], None]]] = {}
+    speedSources : Dict[Train.Train.tIDType, 'rx.Source'] = {}
+    speedObservers : Dict[Train.Train.tIDType, 'rx.Observer'] = {}
 
     def __init__(self, stationIP:str, ownIP:str) -> None:
         self.SENDIP = stationIP
@@ -38,6 +41,8 @@ class Controller():
     def registerTrain(self, train : Train):
         self.trains[train.tID] = train
 
+        self.speedSources[train.tID] = rx.create(lambda observer, _: self.speedObservers.update({train.tID: observer}))
+
     def __listen(self):
         print("start listen")
         while True:
@@ -54,9 +59,8 @@ class Controller():
                 speed = int(res[18:22], base = 16)
                 if tID in self.trains:
                     self.trains[tID].speed = speed
-                if tID in self.speedCallbacks:
-                    for cb in self.speedCallbacks[tID]:
-                        cb(speed)
+                if tID in self.speedObservers:
+                    self.speedObservers[tID].on_next(speed)
 
             # print(f"Prio: {prio} \
             # Command: {hex(command)} \
@@ -106,15 +110,20 @@ class Controller():
             *tID,
             speed//256,
             speed%256,0,0])
+
     def askForSpeed(self, tID, timeout = 0):
         assert(len(tID)==4)
 
+        lclspeed = None
+
+        def assign(speed):
+            ev.set()
+            nonlocal lclspeed
+            lclspeed = speed
+
         ev = Event()
-        cb = lambda x: ev.set()
         if timeout != 0:
-            if not tID in self.speedCallbacks:
-                self.speedCallbacks[tID] = []
-            self.speedCallbacks[tID].append(cb)
+            self.speedSources[tID].pipe(op.first()).subscribe(assign)
 
         self.send(
             [0x00,self.SPEED,0x03,0x00,
@@ -125,9 +134,7 @@ class Controller():
 
         if(timeout != 0):
             success = ev.wait(timeout)
-            self.speedCallbacks[tID].remove(cb)
-
-        return success
+            return (success, lclspeed)
 
     def changeDirection(self, tID):
         self.send(

@@ -24,3 +24,5 @@ if __name__ == "__main__":
         print(train.speed)
         train.setSpeed(100)
         time.sleep(2)
+
+        ctr.askForSpeed(train.tID, None)
