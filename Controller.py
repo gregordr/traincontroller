@@ -1,9 +1,11 @@
 from multiprocessing import Event
 import socket
+from collections import defaultdict
 from threading import Thread
 from typing import Callable, Dict, List
 import reactivex as rx
 from reactivex import operators as op
+
 import Train
 
 class Controller():
@@ -12,9 +14,7 @@ class Controller():
     SETTINGS = 0x00
 
     trains : Dict[Train.Train.tIDType,Train.Train] = {}
-    speedCallbacks : Dict[Train.Train.tIDType, List[Callable[[int], None]]] = {}
-    speedSources : Dict[Train.Train.tIDType, 'rx.Source'] = {}
-    speedObservers : Dict[Train.Train.tIDType, 'rx.Observer'] = {}
+    speedSubjects : Dict[Train.Train.tIDType, rx.Subject] = defaultdict(rx.Subject)
 
     def __init__(self, stationIP:str, ownIP:str) -> None:
         self.SENDIP = stationIP
@@ -41,8 +41,6 @@ class Controller():
     def registerTrain(self, train : Train):
         self.trains[train.tID] = train
 
-        self.speedSources[train.tID] = rx.create(lambda observer, _: self.speedObservers.update({train.tID: observer}))
-
     def __listen(self):
         print("start listen")
         while True:
@@ -59,8 +57,7 @@ class Controller():
                 speed = int(res[18:22], base = 16)
                 if tID in self.trains:
                     self.trains[tID].speed = speed
-                if tID in self.speedObservers:
-                    self.speedObservers[tID].on_next(speed)
+                self.speedSubjects[tID].on_next(speed)
 
             # print(f"Prio: {prio} \
             # Command: {hex(command)} \
@@ -123,7 +120,7 @@ class Controller():
 
         ev = Event()
         if timeout != 0:
-            self.speedSources[tID].pipe(op.first()).subscribe(assign)
+            self.speedSubjects[tID].pipe(op.first()).subscribe(assign)
 
         self.send(
             [0x00,self.SPEED,0x03,0x00,
